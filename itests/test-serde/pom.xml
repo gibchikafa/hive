@@ -36,7 +36,7 @@
     </dependency>
     <!-- inter-project -->
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-common</artifactId>
       <optional>true</optional>
     </dependency>

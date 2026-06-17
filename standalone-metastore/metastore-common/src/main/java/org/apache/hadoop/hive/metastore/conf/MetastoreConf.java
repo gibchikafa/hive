@@ -1765,6 +1765,8 @@ public class MetastoreConf {
         "hive.metastore.wm.default.pool.size", 4,
         "The size of a default pool to create when creating an empty resource plan;\n" +
         "If not positive, no default pool will be created."),
+    METASTORE_HOPS_HIVE_TLS("metastore.hops.tls.enabled", "hive.metastore.hops.tls.enabled",
+      true, "Enable Hops TLS authentication"),
     RAWSTORE_PARTITION_BATCH_SIZE("metastore.rawstore.batch.size",
         "metastore.rawstore.batch.size", -1,
         "Batch size for partition and other object retrieval from the underlying DB in JDO.\n" +
@@ -1931,6 +1933,24 @@ public class MetastoreConf {
         "The maximum non-native tables allowed per table type during collecting the summary."),
     METADATA_SUMMARY_NONNATIVE_THREADS("hive.metatool.summary.nonnative.threads", "hive.metatool.summary.nonnative.threads", 20,
         "Number of threads to be allocated for MetaToolTaskMetadataSummary for collecting the non-native table's summary."),
+
+    HOPSDBURLKEY("hops.db.ConnectionURL", "hops.db.ConnectionURL","",
+        "JDBC connect string to connect to HOPS db."),
+    HOPSROOTDIRPARTITIONKEY("hops.root.dir.partition_key", "hops.root.dir.partition_key", 0, "Partition Key of root inode"),
+    HOPSROOTDIRDEPTH("hops.root.dir.depth", "hops.root.dir.depth", 0, "Root dir depth"),
+    HOPSROOTINODEID("hops.root.inode.id", "hops.root.inode.id", 1L, "Id of the root inode"),
+    HOPSRANDOMPARTITIONINGMAXLEVEL("hops.random.partitioning.level","hops.random.partitioning.level", 1, "Number of levels of random partitioning"),
+    METADATACONSISTENCY("hops.metadata.consistent", "hops.metadata.consistent", true,
+        "enable hops metadata consistency. This option is meant to be disabled for testing purposes"),
+    HIVE_SUPER_USER("hive.superuser", "hive.superuser", "hive", "The user to use to create databases"),
+    HIVE_SUPERUSER_ALLOWED_IMPERSONATION("hive.superuser.impersonation-users", "hive.superuser.impersonation-users", "",
+            "User that are allowed to impersonate the Hive superuser"),
+    CERT_RELOAD_THREAD_SLEEP("cert.reload.thread.sleep", "cert.reload.thread.sleep", 60000,
+        "Sleep time for the certificate reloader thread - default 1m"),
+    LOCATION_SCHEME_REWRITE("metastore.location.scheme.rewrite",
+        "hive.metastore.location.scheme.rewrite", "",
+        "Rewrite the scheme of locations returned by the metastore client. " +
+            "Format is \"source_scheme,target_scheme\" (e.g. \"hdfs,rahdfs\"). Leave empty to disable."),
 
     // These are all values that we put here just for testing
     STR_TEST_ENTRY("test.str", "hive.test.str", "defaultval", "comment"),

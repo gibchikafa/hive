@@ -70,6 +70,8 @@ import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.utils.MetastoreVersionInfo;
 import org.apache.hadoop.hive.metastore.utils.SecurityUtils;
 import org.apache.hadoop.security.UserGroupInformation;
+import io.hops.security.CertificateLocalization;
+import io.hops.security.CertificateLocalizationCtx;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -8720,6 +8722,34 @@ public class HMSHandler extends FacebookBase implements IHMSHandler {
   public List<String> set_ugi(String username, List<String> groupNames) throws TException {
     Collections.addAll(groupNames, username);
     return groupNames;
+  }
+
+  @Override
+  public void set_crypto(java.nio.ByteBuffer keyStore, String keyStorePassword,
+      java.nio.ByteBuffer trustStore, String trustStorePassword, boolean update) throws MetaException {
+    if (keyStore == null || trustStore == null ||
+        keyStorePassword == null || keyStorePassword.isEmpty() ||
+        trustStorePassword == null || trustStorePassword.isEmpty()) {
+      throw new MetaException("Crypto material not set correctly");
+    }
+    try {
+      String uname = UserGroupInformation.getCurrentUser().getUserName();
+      String appId = UserGroupInformation.getCurrentUser().getApplicationId();
+      CertificateLocalization certLocSvc =
+          CertificateLocalizationCtx.getInstance().getCertificateLocalization();
+      if (certLocSvc == null) {
+        LOG.warn("set_crypto called but CertificateLocalizationService is not running");
+        return;
+      }
+      if (update) {
+        certLocSvc.updateX509(uname, appId, keyStore, keyStorePassword, trustStore, trustStorePassword);
+      } else {
+        certLocSvc.materializeCertificates(uname, appId, uname, keyStore, keyStorePassword,
+            trustStore, trustStorePassword);
+      }
+    } catch (java.io.IOException | InterruptedException e) {
+      throw new MetaException(e.getMessage());
+    }
   }
 
   @Override

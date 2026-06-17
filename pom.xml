@@ -61,6 +61,7 @@
     <module>standalone-metastore</module>
     <module>kafka-handler</module>
     <module>iceberg</module>
+    <module>hops-jdbc</module>
   </modules>
   <properties>
     <standalone-metastore.version>4.1.0</standalone-metastore.version>
@@ -138,7 +139,7 @@
     <guava.version>22.0</guava.version>
     <groovy.version>2.4.21</groovy.version>
     <h2database.version>2.2.220</h2database.version>
-    <hadoop.version>3.4.1</hadoop.version>
+    <hadoop.version>3.4.3.1-EE-RC0</hadoop.version>
     <hadoop.bin.path>${basedir}/${hive.path.to.root}/testutils/hadoop</hadoop.bin.path>
     <hamcrest.version>1.3</hamcrest.version>
     <hbase.version>2.5.6-hadoop3</hbase.version>
@@ -236,6 +237,18 @@
     <project.build.outputTimestamp>2025-01-01T00:00:00Z</project.build.outputTimestamp>
   </properties>
   <repositories>
+    <repository>
+      <id>hops-releases</id>
+      <url>https://nexus.hops.works/repository/hops-artifacts</url>
+    </repository>
+    <repository>
+      <id>hive-releases</id>
+      <url>https://nexus.hops.works/repository/hive-artifacts</url>
+    </repository>
+    <repository>
+      <id>hops-archiva</id>
+      <url>https://archiva.hops.works/repository/Hops/</url>
+    </repository>
     <!-- This needs to be removed before checking in-->
     <repository>
       <id>central</id>
@@ -947,7 +960,7 @@
         <version>${xerces.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-client</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -958,7 +971,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-auth</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -981,7 +994,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1032,7 +1045,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-hdfs</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1043,7 +1056,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1078,7 +1091,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-mapreduce-client-common</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1109,7 +1122,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-mapreduce-client-core</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1144,7 +1157,7 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-minikdc</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1171,12 +1184,12 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-yarn-api</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-yarn-client</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1187,22 +1200,22 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-yarn-common</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-yarn-registry</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-yarn-server-web-common</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-yarn-server-web-proxy</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1293,7 +1306,7 @@
         <version>${hbase.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.hadoop</groupId>
+        <groupId>io.hops</groupId>
         <artifactId>hadoop-minicluster</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
@@ -2163,4 +2176,10 @@
       </build>
     </profile>
   </profiles>
+  <distributionManagement>
+    <repository>
+      <id>Hive</id>
+      <url>https://nexus.hops.works/repository/hive-artifacts</url>
+    </repository>
+  </distributionManagement>
 </project>

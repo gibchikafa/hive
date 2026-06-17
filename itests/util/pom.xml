@@ -123,7 +123,7 @@
       <classifier>tests</classifier>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-common</artifactId>
       <exclusions>
         <exclusion>
@@ -133,7 +133,7 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-mapreduce-client-core</artifactId>
       <exclusions>
         <exclusion>
@@ -194,12 +194,12 @@
       <artifactId>junit</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <classifier>tests</classifier>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
       <classifier>tests</classifier>
       <exclusions>

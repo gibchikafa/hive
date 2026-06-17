@@ -265,7 +265,7 @@
       <artifactId>libfb303</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-common</artifactId>
       <exclusions>
         <exclusion>
@@ -296,22 +296,22 @@
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-archives</artifactId>
       <version>${hadoop.version}</version>
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-yarn-registry</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-mapreduce-client-core</artifactId>
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-mapreduce-client-common</artifactId>
       <optional>true</optional>
       <scope>test</scope>
@@ -335,7 +335,7 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <exclusions>
         <exclusion>
@@ -346,12 +346,12 @@
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-yarn-api</artifactId>
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-yarn-common</artifactId>
       <exclusions>
         <exclusion>
@@ -362,7 +362,7 @@
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-yarn-client</artifactId>
       <optional>true</optional>
     </dependency>

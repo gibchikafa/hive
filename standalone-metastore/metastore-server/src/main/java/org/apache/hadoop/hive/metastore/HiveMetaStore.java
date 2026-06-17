@@ -100,6 +100,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import javax.servlet.Servlet;
 import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
+import io.hops.security.CertificateLocalizationCtx;
+import io.hops.security.CertificateLocalizationService;
+import org.apache.hadoop.service.ServiceStateException;
 /**
  * TODO:pc remove application logic to a separate interface.
  */
@@ -119,6 +122,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
   static HadoopThriftAuthBridge.Server saslServer;
   private static MetastoreDelegationTokenManager delegationTokenManager;
   static boolean useSasl;
+  private static CertificateLocalizationService certLocService;
 
   private static ZooKeeperHiveHelper zooKeeperHelper = null;
   private static String msHost = null;
@@ -547,7 +551,20 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       }
     }
     
-    if (!useSSL) {
+    boolean hopsTLS = MetastoreConf.getBoolVar(conf, ConfVars.METASTORE_HOPS_HIVE_TLS) &&
+        conf.getBoolean("ipc.server.ssl.enabled", false);
+    if (hopsTLS) {
+      certLocService = new CertificateLocalizationService(
+          CertificateLocalizationService.ServiceType.HM);
+      certLocService.init(conf);
+      certLocService.start();
+      CertificateLocalizationCtx.getInstance().setCertificateLocalization(certLocService);
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        try { certLocService.stop(); } catch (Exception e) { LOG.warn("CertLocService stop error", e); }
+      }));
+      serverSocket = TServerSocketFactory.getServerSocket(conf, TServerSocketFactory.TSocketType.TWOWAYTLS,
+          msHost, port);
+    } else if (!useSSL) {
       serverSocket = SecurityUtils.getServerSocket(msHost, port);
     } else {
       String keyStorePath = MetastoreConf.getVar(conf, ConfVars.SSL_KEYSTORE_PATH).trim();

@@ -207,7 +207,7 @@
       <optional>true</optional>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <artifactId>hadoop-common</artifactId>
       <scope>provided</scope>
       <optional>true</optional>
@@ -243,7 +243,7 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
+      <groupId>io.hops</groupId>
       <scope>provided</scope>
       <artifactId>hadoop-mapreduce-client-core</artifactId>
       <optional>true</optional>

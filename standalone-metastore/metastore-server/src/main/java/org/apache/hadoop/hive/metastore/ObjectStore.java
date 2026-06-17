@@ -26,6 +26,7 @@ import static org.apache.hadoop.hive.metastore.utils.StringUtils.normalizeIdenti
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -334,6 +335,8 @@ public class ObjectStore implements RawStore, Configurable {
   private static final String PTYARG_EQ_KEY = "this.propertyKey == key";
 
   private boolean isInitialized = false;
+  private CachedServiceDiscoveryResolver serviceDiscoveryClient;
+  private String whAuthority = null;
   protected PersistenceManager pm = null;
   protected SQLGenerator sqlGenerator = null;
   private MetaStoreDirectSql directSql = null;
@@ -406,6 +409,18 @@ public class ObjectStore implements RawStore, Configurable {
       throw new RuntimeException("Unable to create persistence manager. Check log for details");
     } else {
       LOG.debug("Initialized ObjectStore");
+    }
+
+    // HopsFS: initialize service discovery and warehouse authority
+    try {
+      String warehouseUri = MetastoreConf.getVar(conf, ConfVars.WAREHOUSE);
+      if (warehouseUri != null && !warehouseUri.isEmpty()) {
+        URI uri = URI.create(warehouseUri);
+        whAuthority = uri.getAuthority();
+      }
+      serviceDiscoveryClient = new CachedServiceDiscoveryResolver(conf);
+    } catch (Exception e) {
+      LOG.warn("HopsFS service discovery initialization failed: " + e.getMessage());
     }
 
     if (tablelocks == null) {
@@ -801,8 +816,36 @@ public class ObjectStore implements RawStore, Configurable {
     return mCat;
   }
 
-  private Catalog mCatToCat(MCatalog mCat) {
-    Catalog cat = new Catalog(mCat.getName(), mCat.getLocationUri());
+  private String enforceWhAuthority(String location) throws MetaException {
+    if (whAuthority == null || location == null || location.isEmpty()) {
+      return location;
+    }
+    URI uri;
+    try {
+      uri = URI.create(location);
+    } catch (IllegalArgumentException e) {
+      return location;
+    }
+    if (uri.getAuthority() == null || uri.getAuthority().equals(whAuthority)) {
+      return location;
+    }
+    return location.replaceFirst(uri.getAuthority(), whAuthority);
+  }
+
+  private String resolveLocation(String location) throws MetaException {
+    if (serviceDiscoveryClient == null || location == null || location.isEmpty()) {
+      return enforceWhAuthority(location);
+    }
+    try {
+      return serviceDiscoveryClient.resolveLocationURI(enforceWhAuthority(location));
+    } catch (Exception e) {
+      LOG.warn("Failed to resolve location {}: {}", location, e.getMessage());
+      return enforceWhAuthority(location);
+    }
+  }
+
+  private Catalog mCatToCat(MCatalog mCat) throws MetaException {
+    Catalog cat = new Catalog(mCat.getName(), resolveLocation(mCat.getLocationUri()));
     if (mCat.getDescription() != null) {
       cat.setDescription(mCat.getDescription());
     }
@@ -928,7 +971,11 @@ public class ObjectStore implements RawStore, Configurable {
       db.setConnector_name(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getDataConnectorName(), null));
       db.setRemote_dbname(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getRemoteDatabaseName(), null));
     }
-    db.setLocationUri(mdb.getLocationUri());
+    try {
+      db.setLocationUri(resolveLocation(mdb.getLocationUri()));
+    } catch (MetaException e) {
+      db.setLocationUri(mdb.getLocationUri());
+    }
     db.setManagedLocationUri(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getManagedLocationUri(), null));
     db.setCatalogName(catName);
     db.setCreateTime(mdb.getCreateTime());
@@ -2480,7 +2527,7 @@ public class ObjectStore implements RawStore, Configurable {
 
     Map<String, String> sdParams = isAcidTable ? Collections.emptyMap() : convertMap(msd.getParameters());
     StorageDescriptor sd = new StorageDescriptor(convertToFieldSchemas(mFieldSchemas),
-        msd.getLocation(), msd.getInputFormat(), msd.getOutputFormat(), msd
+        enforceWhAuthority(msd.getLocation()), msd.getInputFormat(), msd.getOutputFormat(), msd
         .isCompressed(), msd.getNumBuckets(),
         (!isAcidTable) ? convertToSerDeInfo(msd.getSerDeInfo(), true)
             : new SerDeInfo(msd.getSerDeInfo().getName(), msd.getSerDeInfo().getSerializationLib(), Collections.emptyMap()),

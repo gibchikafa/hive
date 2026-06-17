@@ -27,7 +27,10 @@ public class HiveAuthConstants {
     CUSTOM("CUSTOM"),
     PAM("PAM"),
     SAML("SAML"),
-    JWT("JWT");
+    JWT("JWT"),
+    CERTIFICATES("CERTIFICATES"),
+    HOPS("HOPS"),
+    EXTERNAL("EXTERNAL");
 
     private final String authType;
 
