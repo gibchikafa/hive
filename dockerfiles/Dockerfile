@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # syntax=docker/dockerfile:experimental
-FROM eclipse-temurin:8
+FROM eclipse-temurin:17
 ARG HIVE_VERSION
 ARG HIVE_TAR_NAME=hive-packaging-${HIVE_VERSION}-bin.tar.gz
 ARG NEXUS_HIVE_URL="https://nexus.hops.works/repository/hive-artifacts/io/hops/hive/hive-packaging"
@@ -44,8 +44,8 @@ RUN --mount=type=secret,id=wgetrc,dst=/root/.wgetrc \
 
 # Make sure you build with --platform linux/amd64
 
-# /usr/local/openjdk-8/bin/java
-RUN mkdir -p /usr/lib/jvm &&  ln -s $JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
+# Java 17 compatibility symlink for scripts that expect a Debian-style JVM path.
+RUN mkdir -p /usr/lib/jvm &&  ln -s $JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
 ENV HADOOP_HOME=/srv/hops/hadoop
 ENV HADOOP_CONF_DIR="$HADOOP_HOME/conf"
 
@@ -77,7 +77,7 @@ RUN wget -qO ${HOPSWORKS_JARS}/hudi-hadoop-mr-bundle-$HUDI_BUNDLE_VERSION.jar  h
 ENV METASTORE_XMX=2g
 ENV METASTORE_XMS=2g
 ENV HOPSWORKS_JARS=/srv/hops/hopsworks-jars
-ENV HIVE_METASTORE_HADOOP_OPTS="-Xmx${METASTORE_XMX} -Xms${METASTORE_XMS} -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=65 -XX:+UseCMSInitiatingOccupancyOnly -javaagent:${HOPSWORKS_JARS}/jmx_prometheus_javaagent-${PROMETHEUS_EXPORTER_VERSION}.jar=18002:${HIVE_HOME}/conf/hivemetaserver.yaml -Djdk.tls.ephemeralDHKeySize=2048 -Dlog4j2.formatMsgNoLookups=true"
+ENV HIVE_METASTORE_HADOOP_OPTS="-Xmx${METASTORE_XMX} -Xms${METASTORE_XMS} -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=65 -javaagent:${HOPSWORKS_JARS}/jmx_prometheus_javaagent-${PROMETHEUS_EXPORTER_VERSION}.jar=18002:${HIVE_HOME}/conf/hivemetaserver.yaml -Djdk.tls.ephemeralDHKeySize=2048 -Dlog4j2.formatMsgNoLookups=true"
 ENV HIVE_AUX_JARS_PATH=$HOPSWORKS_JARS
 # ENV HIVESERVER2_HADOOP_OPTS='-Djava.io.tmpdir=/tmp/$HIVE_USER'
 

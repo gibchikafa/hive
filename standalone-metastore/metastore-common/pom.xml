@@ -15,7 +15,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>hive-standalone-metastore</artifactId>
-    <groupId>org.apache.hive</groupId>
+    <groupId>io.hops.hive</groupId>
     <version>4.1.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -59,7 +59,7 @@
           <artifactId>hadoop-common</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.apache.hive</groupId>
+          <groupId>io.hops.hive</groupId>
           <artifactId>hive-storage-api</artifactId>
         </exclusion>
         <exclusion>
@@ -236,7 +236,7 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.hive</groupId>
+      <groupId>io.hops.hive</groupId>
       <artifactId>hive-storage-api</artifactId>
     </dependency>
     <dependency>

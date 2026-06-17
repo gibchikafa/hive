@@ -19,7 +19,7 @@
     <artifactId>apache</artifactId>
     <version>23</version>
   </parent>
-  <groupId>org.apache.hive</groupId>
+  <groupId>io.hops.hive</groupId>
   <artifactId>hive</artifactId>
   <version>4.1.0</version>
   <packaging>pom</packaging>
@@ -679,13 +679,13 @@
             <artifactId>hadoop-common</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>org.apache.hive</groupId>
+            <groupId>io.hops.hive</groupId>
             <artifactId>hive-storage-api</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.apache.hive</groupId>
+        <groupId>io.hops.hive</groupId>
         <artifactId>hive-storage-api</artifactId>
         <version>${storage-api.version}</version>
         <exclusions>
