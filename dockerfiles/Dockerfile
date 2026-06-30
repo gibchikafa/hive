@@ -18,11 +18,10 @@ FROM eclipse-temurin:17
 ARG HIVE_VERSION
 ARG HIVE_TAR_NAME=hive-packaging-${HIVE_VERSION}-bin.tar.gz
 ARG NEXUS_HIVE_URL="https://nexus.hops.works/repository/hive-artifacts/io/hops/hive/hive-packaging"
-ARG HADOOP_VERSION_EE=3.4.3.1-EE-RC0
-ARG PROMETHEUS_EXPORTER_VERSION="0.12.0"
-ARG PROMETHEUS_EXPORTER_VERSION="0.12.0"
-ARG MYSQL_CONNECTOR_VERSION="8.0.21"
-ARG HUDI_BUNDLE_VERSION="0.12.3.0"
+ARG HADOOP_VERSION_EE=3.4.3.2-EE-SNAPSHOT
+ARG PROMETHEUS_EXPORTER_VERSION="1.0.1"
+ARG MYSQL_CONNECTOR_VERSION="j-9.7.0"
+ARG HUDI_BUNDLE_VERSION="1.2.0"
 
 ARG USER="hive"
 ARG USERID="1516"
@@ -66,7 +65,7 @@ ENV PATH="/srv/hops/super_crypto/hive:$HIVE_HOME/bin:/opt/venv/bin:$HADOOP_HOME/
 ENV HOPSWORKS_JARS=/srv/hops/hopsworks-jars
 RUN mkdir -p ${HOPSWORKS_JARS}
 # https://repo.hops.works/master/prometheus/jmx_prometheus_javaagent-0.12.0.jar
-RUN wget -qO ${HOPSWORKS_JARS}/jmx_prometheus_javaagent-${PROMETHEUS_EXPORTER_VERSION}.jar https://repo.hops.works/master/prometheus/jmx_prometheus_javaagent-${PROMETHEUS_EXPORTER_VERSION}.jar
+RUN wget -qO ${HOPSWORKS_JARS}/jmx_prometheus_javaagent-${PROMETHEUS_EXPORTER_VERSION}.jar
 # https://repo.hops.works/master/mysql-connector-java-8.0.21-bin.jar
 RUN wget -qO ${HOPSWORKS_JARS}/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}-bin.jar https://repo.hops.works/master/mysql-connector-java-${MYSQL_CONNECTOR_VERSION}-bin.jar
 
