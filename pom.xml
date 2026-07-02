@@ -1850,6 +1850,8 @@
         <configuration>
           <excludes>
             <exclude>.m2/**</exclude>
+            <exclude>**/.m2/**</exclude>
+            <exclude>**/.develocity/**</exclude>
             <eclude>.gitattributes</eclude>
             <exclude>*.patch</exclude>
             <exclude>**/pull_request_template.md</exclude>

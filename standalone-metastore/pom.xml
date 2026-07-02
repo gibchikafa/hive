@@ -82,7 +82,7 @@
     </dropwizard-metrics-hadoop-metrics2-reporter.version>
     <dropwizard.version>3.1.0</dropwizard.version>
     <guava.version>22.0</guava.version>
-    <hadoop.version>3.4.3.1-EE-RC0</hadoop.version>
+    <hadoop.version>3.4.3.2-EE-SNAPSHOT</hadoop.version>
     <hikaricp.version>4.0.3</hikaricp.version>
     <jackson.version>2.16.1</jackson.version>
     <jexl.version>3.3</jexl.version>
@@ -128,6 +128,22 @@
     <wiremock.jre8.standalone.version>2.32.0</wiremock.jre8.standalone.version>
     <project.build.outputTimestamp>2025-01-01T00:00:00Z</project.build.outputTimestamp>
   </properties>
+  <repositories>
+    <repository>
+      <id>hops-releases</id>
+      <url>https://nexus.hops.works/repository/hops-artifacts</url>
+    </repository>
+    <repository>
+      <id>hops-archiva</id>
+      <url>https://archiva.hops.works/repository/Hops/</url>
+    </repository>
+  </repositories>
+  <distributionManagement>
+    <repository>
+      <id>Hive</id>
+      <url>https://nexus.hops.works/repository/hive-artifacts</url>
+    </repository>
+  </distributionManagement>
   <dependencyManagement>
     <dependencies>
       <dependency>
