@@ -686,11 +686,33 @@ public class ObjectStore implements RawStore, Configurable {
     }
   }
 
-  private void setTransactionSavePoint(String savePoint) {
-    if (savePoint != null) {
+  // Latched once the backing datastore rejects SAVEPOINT (NDB/RonDB tables do not support
+  // savepoints) so that later calls skip the attempt instead of failing on every operation.
+  private static volatile boolean savepointsUnsupported = false;
+
+  /**
+   * Sets a savepoint on the current transaction if the datastore supports it.
+   *
+   * @return the savepoint name if it was set, or null if none was requested or the datastore
+   *         does not support savepoints. In the latter case direct SQL still runs, but a
+   *         failure inside an open transaction falls back to JDO without a partial rollback,
+   *         which is the pre-HIVE-26976 (Hive 3) behavior.
+   */
+  private String setTransactionSavePoint(String savePoint) {
+    if (savePoint == null || savepointsUnsupported) {
+      return null;
+    }
+    try {
       ExecutionContext ec = ((JDOPersistenceManager) pm).getExecutionContext();
       ec.getStoreManager().getConnectionManager().getConnection(ec);
       ((JDOTransaction) currentTransaction).setSavepoint(savePoint);
+      return savePoint;
+    } catch (Exception e) {
+      savepointsUnsupported = true;
+      LOG.warn("Datastore does not support transaction savepoints; direct SQL failures inside "
+          + "an open transaction will fall back to JDO without rolling back to a savepoint: "
+          + e.getMessage());
+      return null;
     }
   }
 
@@ -4464,13 +4486,16 @@ public class ObjectStore implements RawStore, Configurable {
         start(initTable);
         String savePoint = isInTxn && allowJdo ? "rollback_" + System.nanoTime() : null;
         if (doUseDirectSql) {
+          // Track the savepoint that was actually established: if prepareTxn or the savepoint
+          // creation itself fails, the error handler must not try to roll back to it.
+          String activeSavePoint = null;
           try {
             directSql.prepareTxn();
-            setTransactionSavePoint(savePoint);
+            activeSavePoint = setTransactionSavePoint(savePoint);
             this.results = getSqlResult(this);
             LOG.debug("Using direct SQL optimization.");
           } catch (Exception ex) {
-            handleDirectSqlError(ex, savePoint);
+            handleDirectSqlError(ex, activeSavePoint);
           }
         }
         // Note that this will be invoked in 2 cases:
