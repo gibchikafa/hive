@@ -256,6 +256,19 @@ public class HMSHandler extends FacebookBase implements IHMSHandler {
     return HMSHandlerContext.getIpAddress().orElse(null);
   }
 
+  // Tracks whether set_crypto materialized certificates on the connection served by this
+  // thread, so HiveMetaStore can remove them when the connection is closed.
+  private static final ThreadLocal<Boolean> tlsSetCryptoCalled =
+      ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+  static boolean getSetCryptoCalled() {
+    return tlsSetCryptoCalled.get();
+  }
+
+  static void removeSetCryptoCalled() {
+    tlsSetCryptoCalled.remove();
+  }
+
   // Make it possible for tests to check that the right type of PartitionExpressionProxy was
   // instantiated.
   @VisibleForTesting
@@ -8747,6 +8760,7 @@ public class HMSHandler extends FacebookBase implements IHMSHandler {
         certLocSvc.materializeCertificates(uname, appId, uname, keyStore, keyStorePassword,
             trustStore, trustStorePassword);
       }
+      tlsSetCryptoCalled.set(Boolean.TRUE);
     } catch (java.io.IOException | InterruptedException e) {
       throw new MetaException(e.getMessage());
     }
