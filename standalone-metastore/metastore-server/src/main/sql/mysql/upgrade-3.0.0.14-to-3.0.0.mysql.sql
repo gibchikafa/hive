@@ -13,6 +13,9 @@ SELECT 'Upgrading MetaStore schema from 3.0.0.14 to 3.0.0' AS MESSAGE;
 ALTER TABLE CTLGS ADD LOCATION_URI varchar(4000) CHARACTER SET latin1 COLLATE latin1_general_cs NOT NULL DEFAULT 'TBD';
 ALTER TABLE DBS ADD DB_LOCATION_URI varchar(4000) CHARACTER SET latin1 COLLATE latin1_bin;
 UPDATE DBS D JOIN SDS S ON D.SD_ID = S.SD_ID SET D.DB_LOCATION_URI = S.LOCATION;
+-- DBS.SD_ID is nullable in the Hopsworks 3.0 schema; rows without an SDS link get the
+-- same 'TBD' placeholder as CTLGS so the NOT NULL constraint below cannot fail.
+UPDATE DBS SET DB_LOCATION_URI = 'TBD' WHERE DB_LOCATION_URI IS NULL;
 ALTER TABLE DBS MODIFY DB_LOCATION_URI varchar(4000) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL;
 
 -- The Hopsworks 3.0 schema dropped the delegation token store tables, but the upstream
