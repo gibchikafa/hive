@@ -20,6 +20,7 @@ package org.apache.hadoop.hive.metastore.security;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.security.PrivilegedExceptionAction;
 import java.security.cert.X509Certificate;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.hops.security.HopsX509AuthenticationException;
 import io.hops.security.HopsX509Authenticator;
 import org.apache.hadoop.conf.Configuration;
@@ -198,21 +200,7 @@ public class TSSLBasedProcessor<I extends Iface> extends TUGIBasedProcessor<Ifac
       throw new SSLException("Client certificate not available");
     }
 
-    UserGroupInformation tmpUGI = UserGroupInformation.createRemoteUser(user);
-
-    try {
-      hopsX509Authenticator.authenticateConnection(tmpUGI, certs[0], socket.getInetAddress(),
-          "hive-metastore");
-    } catch (HopsX509AuthenticationException ex) {
-      throw new TTransportException("Client not authorized", ex);
-    }
-
-    if (usersAllowedToImpersonateSuperuser.contains(user.trim())) {
-      clientUgi = UserGroupInformation.createRemoteUser(
-          MetastoreConf.getVar(metastoreConf, MetastoreConf.ConfVars.HIVE_SUPER_USER));
-    } else {
-      clientUgi = tmpUGI;
-    }
+    clientUgi = resolveClientUgi(user, certs[0], socket.getInetAddress());
 
     // Store the authenticated ugi in the transport and then continue as usual.
     ugiTrans.setClientUGI(clientUgi);
@@ -220,5 +208,38 @@ public class TSSLBasedProcessor<I extends Iface> extends TUGIBasedProcessor<Ifac
     result.write(oprot);
     oprot.writeMessageEnd();
     oprot.getTransport().flush();
+  }
+
+  /**
+   * Turns the user declared through set_ugi into the UGI the rpcs of this connection run as,
+   * after checking that the client certificate authenticates that user. A user on the superuser
+   * impersonation list is elevated to the Hive superuser; every other authenticated user acts as
+   * itself.
+   *
+   * @throws TException if the certificate does not authenticate the declared user
+   */
+  @VisibleForTesting
+  UserGroupInformation resolveClientUgi(String user, X509Certificate clientCert,
+      InetAddress clientAddress) throws TException {
+    UserGroupInformation tmpUGI = UserGroupInformation.createRemoteUser(user);
+
+    try {
+      authenticateConnection(tmpUGI, clientCert, clientAddress);
+    } catch (HopsX509AuthenticationException ex) {
+      throw new TTransportException("Client not authorized", ex);
+    }
+
+    if (usersAllowedToImpersonateSuperuser.contains(user.trim())) {
+      return UserGroupInformation.createRemoteUser(
+          MetastoreConf.getVar(metastoreConf, MetastoreConf.ConfVars.HIVE_SUPER_USER));
+    }
+    return tmpUGI;
+  }
+
+  @VisibleForTesting
+  void authenticateConnection(UserGroupInformation ugi, X509Certificate clientCert,
+      InetAddress clientAddress) throws HopsX509AuthenticationException {
+    hopsX509Authenticator.authenticateConnection(ugi, clientCert, clientAddress,
+        "hive-metastore");
   }
 }

@@ -23,10 +23,6 @@
     <description/>
   </property>
   <property>
-    <name>hopsworks.endpoint</name>
-    <value>https://http.glassfish.service.consul:8182</value>
-  </property>
-  <property>
     <name>hive.exec.stagingdir</name>
     <value>.hive-staging</value>
     <description>Directory name that will be created inside table locations in order to support HDFS encryption. This is replaces ${hive.exec.scratchdir} for query results with the exception of read-only tables. In all cases ${hive.exec.scratchdir} is still used for other temporary files, such as job plans.</description>
@@ -454,14 +450,6 @@
     <value>jdbc:mysql://127.0.0.1:3306/metastore</value>
     <description>
       JDBC connect string for a JDBC metastore.
-      To use SSL to encrypt/authenticate the connection, provide database-specific SSL flag in the connection URL.
-    </description>
-  </property>
-  <property>
-    <name>hops.db.ConnectionURL</name>
-    <value>jdbc:mysql://127.0.0.1:3306/hops</value>
-    <description>
-      JDBC connect string for a JDBC hops database.
       To use SSL to encrypt/authenticate the connection, provide database-specific SSL flag in the connection URL.
     </description>
   </property>
@@ -3806,8 +3794,8 @@
         CUSTOM: Custom authentication provider
                 (Use with property hive.server2.custom.authentication.class)
         PAM: Pluggable authentication module
-        CERTIFICATES: Authenticate using client certificate
-        HOPS: Hops auth - certificate + username + password
+        CERTIFICATES: Authenticate using the CN of the client X.509 certificate
+        HOPS: alias of CERTIFICATES
         NOSASL:  Raw transport
     </description>
   </property>
@@ -3818,7 +3806,7 @@
   </property>
   <property>
     <name>hive.server2.custom.authentication.class</name>
-    <value>org.apache.hive.service.auth.HopsAuthenticationProviderImpl</value>
+    <value/>
     <description>
       Custom authentication class. Used when property
       'hive.server2.authentication' is set to 'CUSTOM'. Provided class

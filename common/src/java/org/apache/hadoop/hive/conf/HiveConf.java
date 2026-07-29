@@ -4271,9 +4271,6 @@ public class HiveConf extends Configuration {
         "  CERTIFICATES: Authenticate using the CN of the client X.509 certificate\n" +
         "  HOPS: Certificate + Password authentication\n" +
         "  EXTERNAL: Hops external users password authentication"),
-    HOPSMETADATACONSISTENCY("hops.metadata.consistent", true,
-        "enable hops metadata consistency. This option is meant to be disabled for testing purposes"),
-    HOPSWORKS_ENDPOINT("hopsworks.endpoint", "0.0.0.0", "Hopsworks endpoint to use for authentication"),
     HIVE_SUPER_USER("hive.superuser", "hive", "The user to use to create databases"),
     HIVE_SUPERUSER_ALLOWED_IMPERSONATION("hive.superuser.impersonation-users", "",
         "Users that are allowed to impersonate the Hive superuser"),

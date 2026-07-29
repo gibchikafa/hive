@@ -28,9 +28,10 @@ public class HiveAuthConstants {
     PAM("PAM"),
     SAML("SAML"),
     JWT("JWT"),
+    // Both authenticate the client through the CN of the X.509 certificate presented on the
+    // Hops two-way TLS connection; HOPS is kept as an alias for existing configurations.
     CERTIFICATES("CERTIFICATES"),
-    HOPS("HOPS"),
-    EXTERNAL("EXTERNAL");
+    HOPS("HOPS");
 
     private final String authType;
 

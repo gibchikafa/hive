@@ -82,9 +82,17 @@ public class ThriftBinaryCLIService extends ThriftCLIService {
       TProcessorFactory processorFactory = hiveAuthFactory.getAuthProcFactory(this);
       TServerSocket serverSocket = null;
       String authTypeStr = hiveConf.getVar(ConfVars.HIVE_SERVER2_AUTHENTICATION);
-      boolean hopsTLS = hiveConf.getBoolean("ipc.server.ssl.enabled", false)
-          && (authTypeStr.equalsIgnoreCase(HiveAuthConstants.AuthTypes.CERTIFICATES.getAuthName())
-              || authTypeStr.equalsIgnoreCase(HiveAuthConstants.AuthTypes.HOPS.getAuthName()));
+      boolean certificateAuth =
+          authTypeStr.equalsIgnoreCase(HiveAuthConstants.AuthTypes.CERTIFICATES.getAuthName())
+              || authTypeStr.equalsIgnoreCase(HiveAuthConstants.AuthTypes.HOPS.getAuthName());
+      boolean hopsTLS = hiveConf.getBoolean("ipc.server.ssl.enabled", false) && certificateAuth;
+      if (certificateAuth && !hopsTLS) {
+        // These auth types take the client identity from the peer certificate, which only exists
+        // on a two-way TLS connection. Refuse to start rather than listen on a plain socket
+        // where no certificate can be presented and no client can be authenticated.
+        throw new IllegalArgumentException("hive.server2.authentication=" + authTypeStr
+            + " requires Hops two-way TLS, set ipc.server.ssl.enabled to true");
+      }
       List<String> sslVersionBlacklist = new ArrayList<String>();
       for (String sslVersion : hiveConf.getVar(ConfVars.HIVE_SSL_PROTOCOL_BLACKLIST).split(",")) {
         sslVersionBlacklist.add(sslVersion);

@@ -326,6 +326,7 @@ public class HMSHandler extends FacebookBase implements IHMSHandler {
 
   @Override
   public void init() throws MetaException {
+    warnAboutObsoleteHopsConf();
     Metrics.initialize(conf);
     initListeners = MetaStoreServerUtils.getMetaStoreListeners(
         MetaStoreInitListener.class, conf, MetastoreConf.getVar(conf, ConfVars.INIT_HOOKS));
@@ -405,6 +406,33 @@ public class HMSHandler extends FacebookBase implements IHMSHandler {
     }
     dataconnectorFactory = DataConnectorProviderFactory.getInstance(this);
   }
+
+  /**
+   * Hops inode-level metadata consistency (SDS rows tied to hops.hdfs_inodes by an
+   * ON DELETE CASCADE foreign key) does not exist in Hive 4.x: the schema no longer carries the
+   * inode reference and the upgrade to 4.1 drops the constraint. The settings that used to
+   * control it therefore have no effect any more, and are reported here rather than being
+   * ignored in silence, because a deployment that carries them expects a guarantee it no longer
+   * gets: a table directory removed directly in HopsFS now leaves its metastore rows behind.
+   */
+  private void warnAboutObsoleteHopsConf() {
+    for (String obsolete : OBSOLETE_HOPS_CONF) {
+      if (conf.get(obsolete) != null) {
+        LOG.warn("Ignoring obsolete configuration '{}': Hops inode-level metadata consistency is "
+            + "no longer implemented, metastore rows are not removed when the corresponding "
+            + "HopsFS directory is deleted outside of the metastore.", obsolete);
+      }
+    }
+  }
+
+  private static final String[] OBSOLETE_HOPS_CONF = {
+      "hops.metadata.consistent",
+      "hops.db.ConnectionURL",
+      "hops.root.dir.partition_key",
+      "hops.root.dir.depth",
+      "hops.root.inode.id",
+      "hops.random.partitioning.level"
+  };
 
   /**
    *

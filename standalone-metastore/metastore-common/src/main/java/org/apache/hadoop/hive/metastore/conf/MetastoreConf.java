@@ -171,6 +171,7 @@ public class MetastoreConf {
   @SuppressFBWarnings(value = "MS_MUTABLE_ARRAY")
   public static final MetastoreConf.ConfVars[] metaVars = {
       ConfVars.WAREHOUSE,
+      ConfVars.ENFORCE_WAREHOUSE_AUTHORITY,
       ConfVars.REPLDIR,
       ConfVars.THRIFT_URIS,
       ConfVars.SERVER_PORT,
@@ -1757,6 +1758,11 @@ public class MetastoreConf {
         "validates existing schema against code. turn this on if you want to verify existing schema"),
     WAREHOUSE("metastore.warehouse.dir", "hive.metastore.warehouse.dir", "/user/hive/warehouse",
         "location of default database for the warehouse"),
+    ENFORCE_WAREHOUSE_AUTHORITY("metastore.warehouse.enforce.authority",
+        "hive.metastore.warehouse.enforce.authority", false,
+        "Enforce warehouse authority to be the same as the one specified in the\n" +
+        "metastore.warehouse.dir option. Leave this off when tables may live on a\n" +
+        "filesystem other than the warehouse one."),
     WAREHOUSE_EXTERNAL("metastore.warehouse.external.dir",
         "hive.metastore.warehouse.external.dir", "",
         "Default location for external tables created in the warehouse. " +
@@ -1934,14 +1940,6 @@ public class MetastoreConf {
     METADATA_SUMMARY_NONNATIVE_THREADS("hive.metatool.summary.nonnative.threads", "hive.metatool.summary.nonnative.threads", 20,
         "Number of threads to be allocated for MetaToolTaskMetadataSummary for collecting the non-native table's summary."),
 
-    HOPSDBURLKEY("hops.db.ConnectionURL", "hops.db.ConnectionURL","",
-        "JDBC connect string to connect to HOPS db."),
-    HOPSROOTDIRPARTITIONKEY("hops.root.dir.partition_key", "hops.root.dir.partition_key", 0, "Partition Key of root inode"),
-    HOPSROOTDIRDEPTH("hops.root.dir.depth", "hops.root.dir.depth", 0, "Root dir depth"),
-    HOPSROOTINODEID("hops.root.inode.id", "hops.root.inode.id", 1L, "Id of the root inode"),
-    HOPSRANDOMPARTITIONINGMAXLEVEL("hops.random.partitioning.level","hops.random.partitioning.level", 1, "Number of levels of random partitioning"),
-    METADATACONSISTENCY("hops.metadata.consistent", "hops.metadata.consistent", true,
-        "enable hops metadata consistency. This option is meant to be disabled for testing purposes"),
     HIVE_SUPER_USER("hive.superuser", "hive.superuser", "hive", "The user to use to create databases"),
     HIVE_SUPERUSER_ALLOWED_IMPERSONATION("hive.superuser.impersonation-users", "hive.superuser.impersonation-users", "",
             "User that are allowed to impersonate the Hive superuser"),

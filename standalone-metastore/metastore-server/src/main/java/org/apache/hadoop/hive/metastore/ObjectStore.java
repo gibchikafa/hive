@@ -26,7 +26,6 @@ import static org.apache.hadoop.hive.metastore.utils.StringUtils.normalizeIdenti
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.URI;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -335,8 +334,7 @@ public class ObjectStore implements RawStore, Configurable {
   private static final String PTYARG_EQ_KEY = "this.propertyKey == key";
 
   private boolean isInitialized = false;
-  private CachedServiceDiscoveryResolver serviceDiscoveryClient;
-  private String whAuthority = null;
+  private HopsLocationResolver locationResolver;
   protected PersistenceManager pm = null;
   protected SQLGenerator sqlGenerator = null;
   private MetaStoreDirectSql directSql = null;
@@ -386,6 +384,12 @@ public class ObjectStore implements RawStore, Configurable {
     currentTransaction = null;
     transactionStatus = TXN_STATUS.NO_STATE;
 
+    // HopsFS: must be in place before initialize(), which hands it to MetaStoreDirectSql.
+    if (locationResolver != null) {
+      locationResolver.close();
+    }
+    locationResolver = new HopsLocationResolver(conf);
+
     initialize();
 
     String partitionValidationRegex =
@@ -409,18 +413,6 @@ public class ObjectStore implements RawStore, Configurable {
       throw new RuntimeException("Unable to create persistence manager. Check log for details");
     } else {
       LOG.debug("Initialized ObjectStore");
-    }
-
-    // HopsFS: initialize service discovery and warehouse authority
-    try {
-      String warehouseUri = MetastoreConf.getVar(conf, ConfVars.WAREHOUSE);
-      if (warehouseUri != null && !warehouseUri.isEmpty()) {
-        URI uri = URI.create(warehouseUri);
-        whAuthority = uri.getAuthority();
-      }
-      serviceDiscoveryClient = new CachedServiceDiscoveryResolver(conf);
-    } catch (Exception e) {
-      LOG.warn("HopsFS service discovery initialization failed: " + e.getMessage());
     }
 
     if (tablelocks == null) {
@@ -451,7 +443,7 @@ public class ObjectStore implements RawStore, Configurable {
       if (MetastoreConf.getBoolVar(getConf(), ConfVars.TRY_DIRECT_SQL)) {
         String schema = PersistenceManagerProvider.getProperty("javax.jdo.mapping.Schema");
         schema = org.apache.commons.lang3.StringUtils.defaultIfBlank(schema, null);
-        directSql = new MetaStoreDirectSql(pm, conf, schema);
+        directSql = new MetaStoreDirectSql(pm, conf, schema, locationResolver);
       }
     }
     if (propertyStore == null) {
@@ -564,6 +556,10 @@ public class ObjectStore implements RawStore, Configurable {
     if (pm != null) {
       pm.close();
       pm = null;
+    }
+    if (locationResolver != null) {
+      locationResolver.close();
+      locationResolver = null;
     }
   }
 
@@ -746,7 +742,7 @@ public class ObjectStore implements RawStore, Configurable {
     try {
       MCatalog mCat = getMCatalog(catName);
       if (org.apache.commons.lang3.StringUtils.isNotBlank(cat.getLocationUri())) {
-        mCat.setLocationUri(cat.getLocationUri());
+        mCat.setLocationUri(locationResolver.enforceWarehouseAuthority(cat.getLocationUri()));
       }
       if (org.apache.commons.lang3.StringUtils.isNotBlank(cat.getDescription())) {
         mCat.setDescription(cat.getDescription());
@@ -833,41 +829,13 @@ public class ObjectStore implements RawStore, Configurable {
     if (cat.isSetDescription()) {
       mCat.setDescription(cat.getDescription());
     }
-    mCat.setLocationUri(cat.getLocationUri());
+    mCat.setLocationUri(locationResolver.enforceWarehouseAuthority(cat.getLocationUri()));
     mCat.setCreateTime(cat.getCreateTime());
     return mCat;
   }
 
-  private String enforceWhAuthority(String location) throws MetaException {
-    if (whAuthority == null || location == null || location.isEmpty()) {
-      return location;
-    }
-    URI uri;
-    try {
-      uri = URI.create(location);
-    } catch (IllegalArgumentException e) {
-      return location;
-    }
-    if (uri.getAuthority() == null || uri.getAuthority().equals(whAuthority)) {
-      return location;
-    }
-    return location.replaceFirst(uri.getAuthority(), whAuthority);
-  }
-
-  private String resolveLocation(String location) throws MetaException {
-    if (serviceDiscoveryClient == null || location == null || location.isEmpty()) {
-      return enforceWhAuthority(location);
-    }
-    try {
-      return serviceDiscoveryClient.resolveLocationURI(enforceWhAuthority(location));
-    } catch (Exception e) {
-      LOG.warn("Failed to resolve location {}: {}", location, e.getMessage());
-      return enforceWhAuthority(location);
-    }
-  }
-
-  private Catalog mCatToCat(MCatalog mCat) throws MetaException {
-    Catalog cat = new Catalog(mCat.getName(), resolveLocation(mCat.getLocationUri()));
+  private Catalog mCatToCat(MCatalog mCat) {
+    Catalog cat = new Catalog(mCat.getName(), locationResolver.resolveLocation(mCat.getLocationUri()));
     if (mCat.getDescription() != null) {
       cat.setDescription(mCat.getDescription());
     }
@@ -883,8 +851,8 @@ public class ObjectStore implements RawStore, Configurable {
     mdb.setCatalogName(normalizeIdentifier(db.getCatalogName()));
     assert mdb.getCatalogName() != null;
     mdb.setName(db.getName().toLowerCase());
-    mdb.setLocationUri(db.getLocationUri());
-    mdb.setManagedLocationUri(db.getManagedLocationUri());
+    mdb.setLocationUri(locationResolver.enforceWarehouseAuthority(db.getLocationUri()));
+    mdb.setManagedLocationUri(locationResolver.enforceWarehouseAuthority(db.getManagedLocationUri()));
     mdb.setDescription(db.getDescription());
     mdb.setParameters(db.getParameters());
     mdb.setOwnerName(db.getOwnerName());
@@ -993,12 +961,9 @@ public class ObjectStore implements RawStore, Configurable {
       db.setConnector_name(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getDataConnectorName(), null));
       db.setRemote_dbname(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getRemoteDatabaseName(), null));
     }
-    try {
-      db.setLocationUri(resolveLocation(mdb.getLocationUri()));
-    } catch (MetaException e) {
-      db.setLocationUri(mdb.getLocationUri());
-    }
-    db.setManagedLocationUri(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getManagedLocationUri(), null));
+    db.setLocationUri(locationResolver.resolveLocation(mdb.getLocationUri()));
+    db.setManagedLocationUri(org.apache.commons.lang3.StringUtils.defaultIfBlank(
+        locationResolver.resolveLocation(mdb.getManagedLocationUri()), null));
     db.setCatalogName(catName);
     db.setCreateTime(mdb.getCreateTime());
     return db;
@@ -1027,10 +992,10 @@ public class ObjectStore implements RawStore, Configurable {
         mdb.setDescription(db.getDescription());
       }
       if (org.apache.commons.lang3.StringUtils.isNotBlank(db.getLocationUri())) {
-        mdb.setLocationUri(db.getLocationUri());
+        mdb.setLocationUri(locationResolver.enforceWarehouseAuthority(db.getLocationUri()));
       }
       if (org.apache.commons.lang3.StringUtils.isNotBlank(db.getManagedLocationUri())) {
-        mdb.setManagedLocationUri(db.getManagedLocationUri());
+        mdb.setManagedLocationUri(locationResolver.enforceWarehouseAuthority(db.getManagedLocationUri()));
       }
       openTransaction();
       pm.makePersistent(mdb);
@@ -1160,8 +1125,9 @@ public class ObjectStore implements RawStore, Configurable {
     db.setOwnerType(principalType);
     if (mdb.getType().equalsIgnoreCase(DatabaseType.NATIVE.name())) {
       db.setType(DatabaseType.NATIVE);
-      db.setLocationUri(mdb.getLocationUri());
-      db.setManagedLocationUri(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getManagedLocationUri(), null));
+      db.setLocationUri(locationResolver.resolveLocation(mdb.getLocationUri()));
+      db.setManagedLocationUri(org.apache.commons.lang3.StringUtils.defaultIfBlank(
+          locationResolver.resolveLocation(mdb.getManagedLocationUri()), null));
     } else {
       db.setType(DatabaseType.REMOTE);
       db.setConnector_name(org.apache.commons.lang3.StringUtils.defaultIfBlank(mdb.getDataConnectorName(), null));
@@ -2549,7 +2515,7 @@ public class ObjectStore implements RawStore, Configurable {
 
     Map<String, String> sdParams = isAcidTable ? Collections.emptyMap() : convertMap(msd.getParameters());
     StorageDescriptor sd = new StorageDescriptor(convertToFieldSchemas(mFieldSchemas),
-        enforceWhAuthority(msd.getLocation()), msd.getInputFormat(), msd.getOutputFormat(), msd
+        locationResolver.resolveLocation(msd.getLocation()), msd.getInputFormat(), msd.getOutputFormat(), msd
         .isCompressed(), msd.getNumBuckets(),
         (!isAcidTable) ? convertToSerDeInfo(msd.getSerDeInfo(), true)
             : new SerDeInfo(msd.getSerDeInfo().getName(), msd.getSerDeInfo().getSerializationLib(), Collections.emptyMap()),
@@ -2650,8 +2616,9 @@ public class ObjectStore implements RawStore, Configurable {
     if (sd == null) {
       return null;
     }
-    return new MStorageDescriptor(mcd, sd
-        .getLocation(), sd.getInputFormat(), sd.getOutputFormat(), sd
+    return new MStorageDescriptor(mcd,
+        locationResolver.enforceWarehouseAuthority(sd.getLocation()),
+        sd.getInputFormat(), sd.getOutputFormat(), sd
         .isCompressed(), sd.getNumBuckets(), convertToMSerDeInfo(sd
         .getSerdeInfo()), sd.getBucketCols(),
         convertToMOrders(sd.getSortCols()), sd.getParameters(),
@@ -4464,7 +4431,7 @@ public class ObjectStore implements RawStore, Configurable {
       boolean isConfigEnabled = MetastoreConf.getBoolVar(getConf(), ConfVars.TRY_DIRECT_SQL)
           && (MetastoreConf.getBoolVar(getConf(), ConfVars.TRY_DIRECT_SQL_DDL) || !isInTxn);
       if (isConfigEnabled && directSql == null) {
-        directSql = new MetaStoreDirectSql(pm, getConf(), "");
+        directSql = new MetaStoreDirectSql(pm, getConf(), "", locationResolver);
       }
 
       if (!allowJdo && isConfigEnabled && !directSql.isCompatibleDatastore()) {

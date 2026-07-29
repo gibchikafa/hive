@@ -17,6 +17,7 @@
  */
 package org.apache.hive.service.auth;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.hops.security.HopsUtil;
 import io.hops.security.HopsX509AuthenticationException;
@@ -40,7 +41,6 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
@@ -79,47 +79,73 @@ public class TSSLBasedProcessor<I extends TCLIService.Iface> extends TSetIpAddre
 
     try {
       TTransport transport = in.getTransport();
+      if (!(transport instanceof TSocket)) {
+        throw new TException("Cannot authenticate the user: transport is not a socket");
+      }
       Socket socket = ((TSocket) transport).getSocket();
+      if (!(socket instanceof SSLSocket)) {
+        throw new TException("Cannot authenticate the user: connection is not TLS");
+      }
       X509Certificate[] certs = ((SSLSocket) socket).getSession().getPeerCertificateChain();
 
       // Make sure it's 2 way ssl, i.e. client certificate is available
-      if (certs.length == 0) {
+      if (certs == null || certs.length == 0) {
         throw new TException("Missing certificates");
       }
 
       // Client certificate is always the first
-      String DN = certs[0].getSubjectDN().getName();
-      String cn = HopsUtil.extractCNFromSubject(DN);
-      if (cn == null) {
-        throw new TException("Cannot authenticate the user: Unrecognized CN format");
-      }
-
-      Matcher matcher = PROJECT_USER.matcher(cn);
-      if (matcher.matches()) {
-        // The certificate is in the format projectName__userName
-        TSetIpAddressProcessor.setUserNameForCurrentThread(cn);
-      } else {
-        try {
-          if (hopsX509Authenticator.isTrustedConnection(InetAddress.getByName(TSetIpAddressProcessor.getUserIpAddress()), cn)) {
-            String locality = HopsUtil.extractLFromSubject(DN);
-            if (usersAllowedToImpersonateSuperuser.contains(locality.trim())) {
-              // Operate as superuser
-              TSetIpAddressProcessor.setUserNameForCurrentThread(hiveConf.getVar(HiveConf.ConfVars.HIVE_SUPER_USER));
-              return;
-            }
-          }
-        } catch (UnknownHostException ex) {
-          LOGGER.error("Cannot resolve machine address: ", ex);
-          throw new TException("Cannot authenticate the user");
-        } catch (HopsX509AuthenticationException ex) {
-          LOGGER.debug("Cannot authenticate super user", ex);
-          throw new TException("Authentication failure", ex);
-        }
-
-        throw new TException("Failed to authenticate superuser");
-      }
+      TSetIpAddressProcessor.setUserNameForCurrentThread(
+          resolveUserName(certs[0].getSubjectDN().getName(),
+              TSetIpAddressProcessor.getUserIpAddress()));
     } catch (SSLException e) {
       throw new TException(e);
     }
+  }
+
+  /**
+   * Derives the user this connection acts as from the subject of its client certificate.
+   *
+   * <p>A {@code project__user} CN identifies that user directly. Any other CN is only accepted
+   * as the Hive superuser, and only when the connection comes from the host the certificate was
+   * issued to and the certificate's L field names a user allowed to impersonate the superuser.
+   *
+   * @return the authenticated user name, never null
+   * @throws TException if the certificate does not authenticate anybody
+   */
+  @VisibleForTesting
+  String resolveUserName(String subjectDN, String clientIpAddress) throws TException {
+    String cn = HopsUtil.extractCNFromSubject(subjectDN);
+    if (cn == null) {
+      throw new TException("Cannot authenticate the user: Unrecognized CN format");
+    }
+
+    if (PROJECT_USER.matcher(cn).matches()) {
+      // The certificate is in the format projectName__userName
+      return cn;
+    }
+
+    try {
+      if (isTrustedConnection(InetAddress.getByName(clientIpAddress), cn)) {
+        String locality = HopsUtil.extractLFromSubject(subjectDN);
+        if (locality != null && usersAllowedToImpersonateSuperuser.contains(locality.trim())) {
+          // Operate as superuser
+          return hiveConf.getVar(HiveConf.ConfVars.HIVE_SUPER_USER);
+        }
+      }
+    } catch (UnknownHostException ex) {
+      LOGGER.error("Cannot resolve machine address: ", ex);
+      throw new TException("Cannot authenticate the user");
+    } catch (HopsX509AuthenticationException ex) {
+      LOGGER.debug("Cannot authenticate super user", ex);
+      throw new TException("Authentication failure", ex);
+    }
+
+    throw new TException("Failed to authenticate superuser");
+  }
+
+  @VisibleForTesting
+  boolean isTrustedConnection(InetAddress clientAddress, String cn)
+      throws HopsX509AuthenticationException {
+    return hopsX509Authenticator.isTrustedConnection(clientAddress, cn);
   }
 }

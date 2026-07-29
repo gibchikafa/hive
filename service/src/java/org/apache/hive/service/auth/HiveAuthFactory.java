@@ -140,8 +140,9 @@ public class HiveAuthFactory {
       transportFactory = PlainSaslHelper.getPlainTransportFactory(authTypeStr);
     } else if (authType.isEnabled(HiveAuthConstants.AuthTypes.NOSASL)
         || authType.isEnabled(HiveAuthConstants.AuthTypes.HOPS)
-        || authType.isEnabled(HiveAuthConstants.AuthTypes.CERTIFICATES)
-        || authType.isEnabled(HiveAuthConstants.AuthTypes.EXTERNAL)) {
+        || authType.isEnabled(HiveAuthConstants.AuthTypes.CERTIFICATES)) {
+      // For HOPS/CERTIFICATES the client is authenticated during the TLS handshake and the
+      // identity is taken from the peer certificate by TSSLBasedProcessor, so no SASL layer.
       transportFactory = new TTransportFactory();
     } else {
       throw new LoginException("Unsupported authentication type " + authType.getAuthTypes());
