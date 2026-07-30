@@ -134,13 +134,20 @@ EOF
             UPDATE_ARG="-U"
           fi
 
+          # Defaults are repeated here because this script runs under -u: Jenkins only exports a
+          # parameter as an environment variable once the job has registered it, which happens at
+          # the end of the first build after this file adds it. A build triggered with an explicit
+          # parameter set that omits these would hit the same gap.
+          PUBLISH_HOPS="${PUBLISH_TO_HOPS_ARTIFACTS:-true}"
+          DEPLOY_ARGS="${MAVEN_DEPLOY_ARGS:-deploy -Pdist -DskipTests -Denforcer.skip=true}"
+
           # Both the root pom and standalone-metastore/pom.xml pin distributionManagement to
           # the Hive repo (hive-artifacts). altDeploymentRepository overrides that for every
           # module in the reactor, so a second deploy publishes the same artifacts to
           # hops-artifacts without touching either pom. maven-deploy-plugin is 2.8.2 (inherited
           # from org.apache:apache:23), which requires the three-part id::layout::url form.
           ALT_DEPLOY_REPO=""
-          if [ "$PUBLISH_TO_HOPS_ARTIFACTS" = "true" ]; then
+          if [ "$PUBLISH_HOPS" = "true" ]; then
             ALT_DEPLOY_REPO="HopsEE::default::${HOPS_ARTIFACTS_URL}"
           fi
 
@@ -158,7 +165,7 @@ EOF
             -e MAVEN_CMD="$MAVEN_CMD" \
             -e MAVEN_SETTINGS="$MAVEN_SETTINGS" \
             -e MAVEN_ARGS="$MAVEN_ARGS" \
-            -e MAVEN_DEPLOY_ARGS="$MAVEN_DEPLOY_ARGS" \
+            -e MAVEN_DEPLOY_ARGS="$DEPLOY_ARGS" \
             -e ALT_DEPLOY_REPO="$ALT_DEPLOY_REPO" \
             -e UPDATE_ARG="$UPDATE_ARG" \
             "$DOCKER_IMAGE" \
