@@ -34,6 +34,8 @@ pipeline {
     string(name: 'BRANCH_TO_BUILD', defaultValue: 'hops-4.1.0', description: 'Git branch to build.')
     string(name: 'MAVEN_CMD', defaultValue: 'mvn', description: 'Maven executable to use.')
     string(name: 'MAVEN_ARGS', defaultValue: 'clean install deploy -Pdist -DskipTests -Denforcer.skip=true', description: 'Maven goals and arguments.')
+    string(name: 'MAVEN_DEPLOY_ARGS', defaultValue: 'deploy -Pdist -DskipTests -Denforcer.skip=true', description: 'Maven goals for the second publish to hops-artifacts. Must not include clean or the artifacts built by MAVEN_ARGS are discarded.')
+    booleanParam(name: 'PUBLISH_TO_HOPS_ARTIFACTS', defaultValue: true, description: 'Publish the artifacts to hops-artifacts in addition to hive-artifacts, so consumers can resolve io.hops.hive:* with the HopsEE credentials they already have.')
     booleanParam(name: 'FORCE_UPDATE', defaultValue: true, description: 'Pass -U to Maven to refresh snapshot and cached dependency resolution.')
   }
 
@@ -44,6 +46,7 @@ pipeline {
     MAVEN_LOCAL_REPO = '/maven-repo/repository'
     MAVEN_OPTS = '-Xmx4G'
     MAVEN_SETTINGS = "${WORKSPACE}@tmp/mvn-settings.xml"
+    HOPS_ARTIFACTS_URL = 'https://nexus.hops.works/repository/hops-artifacts'
   }
 
   stages {
@@ -131,6 +134,16 @@ EOF
             UPDATE_ARG="-U"
           fi
 
+          # Both the root pom and standalone-metastore/pom.xml pin distributionManagement to
+          # the Hive repo (hive-artifacts). altDeploymentRepository overrides that for every
+          # module in the reactor, so a second deploy publishes the same artifacts to
+          # hops-artifacts without touching either pom. maven-deploy-plugin is 2.8.2 (inherited
+          # from org.apache:apache:23), which requires the three-part id::layout::url form.
+          ALT_DEPLOY_REPO=""
+          if [ "$PUBLISH_TO_HOPS_ARTIFACTS" = "true" ]; then
+            ALT_DEPLOY_REPO="HopsEE::default::${HOPS_ARTIFACTS_URL}"
+          fi
+
           docker run --rm \
             -u "$(id -u):$(id -g)" \
             -v "$WORKSPACE:$WORKSPACE" \
@@ -145,6 +158,8 @@ EOF
             -e MAVEN_CMD="$MAVEN_CMD" \
             -e MAVEN_SETTINGS="$MAVEN_SETTINGS" \
             -e MAVEN_ARGS="$MAVEN_ARGS" \
+            -e MAVEN_DEPLOY_ARGS="$MAVEN_DEPLOY_ARGS" \
+            -e ALT_DEPLOY_REPO="$ALT_DEPLOY_REPO" \
             -e UPDATE_ARG="$UPDATE_ARG" \
             "$DOCKER_IMAGE" \
             bash -lc '
@@ -157,6 +172,12 @@ EOF
               fi
               test -x "$JAVA_HOME/bin/javadoc"
               "$MAVEN_CMD" -s "$MAVEN_SETTINGS" -Dmaven.repo.local="$MAVEN_LOCAL_REPO" $UPDATE_ARG $MAVEN_ARGS
+
+              if [ -n "$ALT_DEPLOY_REPO" ]; then
+                echo "Publishing the same artifacts to $ALT_DEPLOY_REPO"
+                "$MAVEN_CMD" -s "$MAVEN_SETTINGS" -Dmaven.repo.local="$MAVEN_LOCAL_REPO" \
+                  $MAVEN_DEPLOY_ARGS -DaltDeploymentRepository="$ALT_DEPLOY_REPO"
+              fi
             '
         '''
       }
