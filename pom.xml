@@ -271,6 +271,22 @@
       </snapshots>
     </repository>
     <repository>
+      <!-- org.hyperic:sigar, pulled in by druid, is not on maven central at all;
+        it is only published here. Druid's own poms declare this repository over
+        plain http, which maven 3.8.1+ blocks, and that declaration is not in the
+        repository list used to resolve a project artifact anyway - so
+        hive-druid-handler could not resolve sigar. Declared here over https to put
+        it in every module's list. -->
+      <id>jboss-public</id>
+      <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
       <!-- shibboleth doesn't publish artifacts on maven central
         See https://wiki.shibboleth.net/confluence/display/DEV/Use+of+Maven+Central -->
       <id>shibboleth</id>
