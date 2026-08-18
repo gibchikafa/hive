@@ -47,6 +47,12 @@ pipeline {
     MAVEN_OPTS = '-Xmx4G'
     MAVEN_SETTINGS = "${WORKSPACE}@tmp/mvn-settings.xml"
     HOPS_ARTIFACTS_URL = 'https://nexus.hops.works/repository/hops-artifacts'
+    // Set to a Nexus proxy of Maven Central (e.g. https://nexus.hops.works/repository/maven-central/)
+    // to stop repo.maven.apache.org rate-limiting (HTTP 429) the agent's IP. Left empty until such a
+    // proxy exists: pointing this at a repository Nexus does not host would break all resolution.
+    CENTRAL_MIRROR_URL = ''
+    // Be patient with 429/503 responses instead of failing the reactor after 3 tries.
+    MAVEN_RETRY_ARGS = '-Daether.connector.http.retryHandler.count=10 -Daether.connector.http.retryHandler.interval=15000'
   }
 
   stages {
@@ -72,6 +78,19 @@ pipeline {
           sh '''#!/bin/bash -eu
             rm -rf "$WORKSPACE/.m2" "$HOST_MAVEN_REPO/repository/io/hops/hive"
             mkdir -p "$(dirname "$MAVEN_SETTINGS")" "$HOST_MAVEN_REPO/repository"
+
+            # Only mirror central when a proxy URL is configured; an empty CENTRAL_MIRROR_URL
+            # must not emit a <mirror> with a blank <url>, which would break all resolution.
+            CENTRAL_MIRROR_XML=""
+            if [ -n "${CENTRAL_MIRROR_URL:-}" ]; then
+              CENTRAL_MIRROR_XML="<mirror>
+      <id>hops-central</id>
+      <name>Nexus proxy of Maven Central</name>
+      <url>${CENTRAL_MIRROR_URL}</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>"
+            fi
+
             cat > "$MAVEN_SETTINGS" <<EOF
 <settings>
   <localRepository>${MAVEN_LOCAL_REPO}</localRepository>
@@ -102,11 +121,32 @@ pipeline {
       <password>$PASSWORD</password>
     </server>
     <server>
+      <id>hops-central</id>
+      <username>$USERNAME</username>
+      <password>$PASSWORD</password>
+    </server>
+    <server>
       <id>Hive</id>
       <username>$USERNAME</username>
       <password>$PASSWORD</password>
     </server>
   </servers>
+  <mirrors>
+    <!--
+      Druid's poms declare repository.jboss.org over plain http, and Maven 3.8.1+
+      blocks every http:// repository through its built-in maven-default-http-blocker
+      mirror. org.hyperic:sigar:1.6.5.132 exists only in that JBoss repo (Central
+      returns 404 for it), so with JBoss blocked hive-druid-handler cannot resolve it.
+      Re-point the same repository id at its https URL.
+    -->
+    <mirror>
+      <id>jboss-public-https</id>
+      <name>JBoss public over https</name>
+      <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+      <mirrorOf>repository.jboss.org</mirrorOf>
+    </mirror>
+    ${CENTRAL_MIRROR_XML}
+  </mirrors>
 </settings>
 EOF
           '''
@@ -167,6 +207,7 @@ EOF
             -e MAVEN_ARGS="$MAVEN_ARGS" \
             -e MAVEN_DEPLOY_ARGS="$DEPLOY_ARGS" \
             -e ALT_DEPLOY_REPO="$ALT_DEPLOY_REPO" \
+            -e MAVEN_RETRY_ARGS="$MAVEN_RETRY_ARGS" \
             -e UPDATE_ARG="$UPDATE_ARG" \
             "$DOCKER_IMAGE" \
             bash -lc '
@@ -178,11 +219,11 @@ EOF
                 exit 1
               fi
               test -x "$JAVA_HOME/bin/javadoc"
-              "$MAVEN_CMD" -s "$MAVEN_SETTINGS" -Dmaven.repo.local="$MAVEN_LOCAL_REPO" $UPDATE_ARG $MAVEN_ARGS
+              "$MAVEN_CMD" -s "$MAVEN_SETTINGS" -Dmaven.repo.local="$MAVEN_LOCAL_REPO" $MAVEN_RETRY_ARGS $UPDATE_ARG $MAVEN_ARGS
 
               if [ -n "$ALT_DEPLOY_REPO" ]; then
                 echo "Publishing the same artifacts to $ALT_DEPLOY_REPO"
-                "$MAVEN_CMD" -s "$MAVEN_SETTINGS" -Dmaven.repo.local="$MAVEN_LOCAL_REPO" \
+                "$MAVEN_CMD" -s "$MAVEN_SETTINGS" -Dmaven.repo.local="$MAVEN_LOCAL_REPO" $MAVEN_RETRY_ARGS \
                   $MAVEN_DEPLOY_ARGS -DaltDeploymentRepository="$ALT_DEPLOY_REPO"
               fi
             '
