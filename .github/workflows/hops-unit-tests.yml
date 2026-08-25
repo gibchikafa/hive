@@ -104,12 +104,20 @@ jobs:
         env:
           NEXUS_USER: ${{ secrets.NEXUS_USER }}
           NEXUS_PASS: ${{ secrets.NEXUS_PASS }}
+          NEXUS_HARBOR_USER: ${{ vars.NEXUS_HARBOR_USER }}
+          NEXUS_HARBOR_PASSWORD: ${{ secrets.NEXUS_HARBOR_PASSWORD }}
           CENTRAL_MIRROR_URL: ${{ vars.NEXUS_CENTRAL_MIRROR_URL }}
         run: |
           set -euo pipefail
-          if [ -z "${NEXUS_USER:-}" ] || [ -z "${NEXUS_PASS:-}" ]; then
-            echo "::error::NEXUS_USER/NEXUS_PASS are not set. io.hops artifacts live in a" \
-                 "private Nexus and resolution fails with 401 without them."
+          # Two credential pairs are in use across the org: hopsworks-ee reads
+          # NEXUS_USER/NEXUS_PASS, docker-images reads NEXUS_HARBOR_USER/PASSWORD. Either
+          # opens the same Nexus, so take whichever this repo has been granted.
+          NEXUS_U="${NEXUS_USER:-${NEXUS_HARBOR_USER:-}}"
+          NEXUS_P="${NEXUS_PASS:-${NEXUS_HARBOR_PASSWORD:-}}"
+          if [ -z "$NEXUS_U" ] || [ -z "$NEXUS_P" ]; then
+            echo "::error::No Nexus credentials. Grant this repository either" \
+                 "NEXUS_USER + NEXUS_PASS or NEXUS_HARBOR_USER + NEXUS_HARBOR_PASSWORD;" \
+                 "io.hops artifacts are private and resolution fails with 401 without them."
             exit 1
           fi
 
@@ -123,7 +131,7 @@ jobs:
 
           servers=""
           for id in HopsEE Hops HopsHive hops-releases hive-releases hops-central Hive; do
-            servers="${servers}<server><id>${id}</id><username>${NEXUS_USER}</username><password>${NEXUS_PASS}</password></server>"
+            servers="${servers}<server><id>${id}</id><username>${NEXUS_U}</username><password>${NEXUS_P}</password></server>"
           done
 
           mkdir -p ~/.m2
