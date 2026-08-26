@@ -47,10 +47,11 @@ pipeline {
     MAVEN_OPTS = '-Xmx4G'
     MAVEN_SETTINGS = "${WORKSPACE}@tmp/mvn-settings.xml"
     HOPS_ARTIFACTS_URL = 'https://nexus.hops.works/repository/hops-artifacts'
-    // Set to a Nexus proxy of Maven Central (e.g. https://nexus.hops.works/repository/maven-central/)
-    // to stop repo.maven.apache.org rate-limiting (HTTP 429) the agent's IP. Left empty until such a
-    // proxy exists: pointing this at a repository Nexus does not host would break all resolution.
-    CENTRAL_MIRROR_URL = ''
+    // Nexus proxy of Maven Central, so repo.maven.apache.org stops rate-limiting (HTTP 429)
+    // the agent's IP. This softens the symptom only: the 429s are earned by the volume of
+    // doomed -tests.jar lookups shade makes, 2029 of them in build #32. See shadeTestJar in
+    // druid-handler/pom.xml for the cause.
+    CENTRAL_MIRROR_URL = 'https://nexus.hops.works/repository/cache-maven-public/'
     // Be patient with 429/503 responses instead of failing the reactor after 3 tries.
     MAVEN_RETRY_ARGS = '-Daether.connector.http.retryHandler.count=10 -Daether.connector.http.retryHandler.interval=15000'
   }
