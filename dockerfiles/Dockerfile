@@ -72,7 +72,7 @@ RUN wget -qO ${HOPSWORKS_JARS}/mysql-connector-j-${MYSQL_CONNECTOR_VERSION}.jar 
 
 RUN chmod -R 755 ${HOPSWORKS_JARS}
 
-RUN wget -qO ${HOPSWORKS_JARS}/hudi-hadoop-mr-bundle-$HUDI_BUNDLE_VERSION.jar  https://repo.hops.works/dev/gibson/hudi-hadoop-mr-bundle-$HUDI_BUNDLE_VERSION.jar
+RUN wget -qO ${HOPSWORKS_JARS}/hudi-hadoop-mr-bundle-${HUDI_BUNDLE_VERSION}.jar https://repo.hops.works/master/hudi/${HUDI_BUNDLE_VERSION}/hudi-hadoop-mr-bundle-${HUDI_BUNDLE_VERSION}.jar
 
 ENV METASTORE_XMX=2g
 ENV METASTORE_XMS=2g
