@@ -10,9 +10,22 @@ SELECT 'Upgrading MetaStore schema from 3.0.0.14 to 3.0.0' AS MESSAGE;
 -- MDatabase select them. Restore them; the catalog placeholder 'TBD' is replaced with
 -- the warehouse root by HMSHandler.createDefaultCatalog on first startup, and database
 -- locations are backfilled from the SDS rows the Hopsworks schema links via DBS.SD_ID.
-ALTER TABLE CTLGS ADD LOCATION_URI varchar(4000) CHARACTER SET latin1 COLLATE latin1_general_cs NOT NULL DEFAULT 'TBD';
-ALTER TABLE DBS ADD DB_LOCATION_URI varchar(4000) CHARACTER SET latin1 COLLATE latin1_bin;
-UPDATE DBS D JOIN SDS S ON D.SD_ID = S.SD_ID SET D.DB_LOCATION_URI = S.LOCATION;
+-- Guarded like the rest of this file: VERSION is written only on the last line, and
+-- metastore-db-job.yaml retries migrate.sh, so an interruption re-enters here from the top.
+SET @_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='CTLGS' AND COLUMN_NAME='LOCATION_URI')=0, 'ALTER TABLE CTLGS ADD LOCATION_URI varchar(4000) CHARACTER SET latin1 COLLATE latin1_general_cs NOT NULL DEFAULT ''TBD''', 'SELECT 1');
+PREPARE _s FROM @_sql;
+EXECUTE _s;
+DEALLOCATE PREPARE _s;
+SET @_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='DBS' AND COLUMN_NAME='DB_LOCATION_URI')=0, 'ALTER TABLE DBS ADD DB_LOCATION_URI varchar(4000) CHARACTER SET latin1 COLLATE latin1_bin', 'SELECT 1');
+PREPARE _s FROM @_sql;
+EXECUTE _s;
+DEALLOCATE PREPARE _s;
+-- Keyed on SD_ID, the backfill's source: the drops below remove it, and keying on the
+-- target would silently skip the backfill instead of failing loudly.
+SET @_sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='DBS' AND COLUMN_NAME='SD_ID')=1, 'UPDATE DBS D JOIN SDS S ON D.SD_ID = S.SD_ID SET D.DB_LOCATION_URI = S.LOCATION', 'SELECT 1');
+PREPARE _s FROM @_sql;
+EXECUTE _s;
+DEALLOCATE PREPARE _s;
 -- DBS.SD_ID is nullable in the Hopsworks 3.0 schema; rows without an SDS link get the
 -- same 'TBD' placeholder as CTLGS so the NOT NULL constraint below cannot fail.
 UPDATE DBS SET DB_LOCATION_URI = 'TBD' WHERE DB_LOCATION_URI IS NULL;
