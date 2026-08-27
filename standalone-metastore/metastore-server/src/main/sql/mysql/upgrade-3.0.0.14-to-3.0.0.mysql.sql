@@ -66,20 +66,30 @@ PREPARE _s FROM @_sql;
 EXECUTE _s;
 DEALLOCATE PREPARE _s;
 
--- The Hopsworks 3.0 schema dropped the delegation token store tables, but the upstream
--- MMasterKey/MDelegationToken models (used when the metastore token store is DB-backed)
--- expect them.
+-- The delegation token store tables, used when the metastore token store is DB-backed
+-- (upstream MMasterKey/MDelegationToken). CREATE IF NOT EXISTS covers a schema that
+-- genuinely lacks them; on 3.0.0.14 they are already present.
+--
+-- They are present but on the wrong engine. Upstream writes these two engine clauses
+-- in upper case (INNODB) and its other 77 in mixed case, so the case-sensitive conversion
+-- that put the Hopsworks 3.0 schema on NDB matched 71 tables and missed exactly these
+-- two. An InnoDB table on a RonDB cluster lives on a single mysqld rather than in the
+-- data nodes. MySqlCommandParser rewrites the engine case-insensitively, so the ALTERs
+-- below both fix that and stop an upgraded cluster from diverging from a fresh install,
+-- where the base 4.1 schema creates them through the same rewrite.
 CREATE TABLE IF NOT EXISTS `MASTER_KEYS` (
   `KEY_ID` INTEGER NOT NULL AUTO_INCREMENT,
   `MASTER_KEY` VARCHAR(767) BINARY NULL,
   PRIMARY KEY (`KEY_ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE `MASTER_KEYS` ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS `DELEGATION_TOKENS` (
   `TOKEN_IDENT` VARCHAR(767) BINARY NOT NULL,
   `TOKEN` VARCHAR(767) BINARY NULL,
   PRIMARY KEY (`TOKEN_IDENT`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE `DELEGATION_TOKENS` ENGINE=InnoDB;
 
 UPDATE VERSION SET SCHEMA_VERSION='3.0.0', VERSION_COMMENT='Hive release version 3.0.0' WHERE VER_ID=1;
 
