@@ -60,12 +60,11 @@ pipeline {
     stage('Checkout') {
       steps {
         deleteDir()
+        // Repo URL and credentials come from the job's SCM configuration; only the
+        // branch is overridden by the BRANCH_TO_BUILD parameter.
         checkout([$class: 'GitSCM',
           branches: [[name: "${params.BRANCH_TO_BUILD}"]],
-          userRemoteConfigs: [[
-            url: 'git@github.com:gibchikafa/hive.git',
-            credentialsId: 'id_rsa'
-          ]]
+          userRemoteConfigs: scm.userRemoteConfigs
         ])
       }
     }
